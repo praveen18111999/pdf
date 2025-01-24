@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const PDFDocument = require('pdfkit');
-const fs = require('fs');
+
 const Order = require('../models/order');
+const generateOrderPDF = require('../utils/pdfGenerator');
 
 
 router.get('/orders', async (req, res) => {
@@ -14,6 +14,7 @@ router.get('/orders', async (req, res) => {
       res.status(500).json({ error: 'Failed to fetch orders' });
     }
   });
+
   // Fetch and Display Data in Terminal & Generate PDF for Order Items
   router.get('/generate/:id', async (req, res) => {
     try {
@@ -23,42 +24,26 @@ router.get('/orders', async (req, res) => {
         return res.status(404).json({ error: 'Order not found' });
       }
   
-      // Display rest of the content in the terminal
-      const { orderItems, ...otherDetails } = order.toObject();
-      console.log('Order Details (excluding items):', otherDetails);
-  
-      // Generate PDF for order items
-      const doc = new PDFDocument();
-      const fileName = `${order.order_id}_items.pdf`;
-  
-      // Set PDF content
-      doc.fontSize(20).text('Order Items', { align: 'center', underline: true });
-      doc.moveDown(1);
-  
-      orderItems.forEach((item, index) => {
-        doc.fontSize(12).text(
-          `${index + 1}. Product: ${item.product_name}, Unit Price: ₹${item.unitprice}, Quantity: ${item.quantity}, Total Cost: ₹${item.actualtotalcost}`
-        );
-        doc.moveDown(0.5);
-      });
-  
-      // Save the PDF to a file
+      // PDF Output Path
+      const fileName = `${order.order_id}_summary.pdf`;
       const pdfPath = `./${fileName}`;
-      doc.pipe(require('fs').createWriteStream(pdfPath));
-      doc.end();
+  
+      // Generate PDF
+      generateOrderPDF(order, pdfPath);
   
       console.log(`PDF generated: ${pdfPath}`);
   
       // Respond to the API call
       res.status(200).json({
-        message: 'PDF generated successfully and order details displayed in terminal.',
+        message: 'PDF generated successfully.',
         pdfPath,
-        orderDetails: otherDetails,
+        orderDetails: order,
       });
     } catch (error) {
       console.error('Error:', error);
       res.status(500).json({ error: 'Failed to generate PDF' });
     }
   });
+  
   
   module.exports = router;
